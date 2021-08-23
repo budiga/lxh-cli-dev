@@ -4,5 +4,5 @@ module.exports = core;
 
 function core() {
     // TODO
-    console.log('lerna core4!')
+    console.log('lerna core5!')
 }
