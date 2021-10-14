@@ -1,0 +1,40 @@
+{
+  "name": "@lxh-cli-dev/core",
+  "version": "1.0.5",
+  "description": "lxh-cli-dev core/cli",
+  "keywords": [
+    "lxh-cli-dev"
+  ],
+  "author": "liuxuehuan <510390986@qq.com>",
+  "homepage": "",
+  "license": "ISC",
+  "main": "lib/index.js",
+  "bin": {
+    "lxh-cli-dev": "bin/index.js"
+  },
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "test": "echo \"Error: run tests from root\" && exit 1"
+  },
+  "dependencies": {
+    "@lxh-cli-dev/log": "file:../../utils/log",
+    "colors": "^1.4.0",
+    "import-local": "^3.0.3",
+    "npmlog": "^5.0.1",
+    "path-exists": "^5.0.0",
+    "root-check": "^2.0.0",
+    "semver": "^7.3.5",
+    "user-home": "^3.0.0"
+  },
+  "gitHead": "47a405e465fca8df9155dd0771943755f77ee0d4"
+}
