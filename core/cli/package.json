@@ -10,7 +10,7 @@
   "license": "ISC",
   "main": "lib/index.js",
   "bin": {
-    "lxh-cli-dev": "bin/index.js"
+    "l-cli": "bin/index.js"
   },
   "directories": {
     "lib": "lib",
@@ -27,9 +27,14 @@
     "test": "echo \"Error: run tests from root\" && exit 1"
   },
   "dependencies": {
+    "@lxh-cli-dev/get-npm-info": "file:../../utils/get-npm-info",
     "@lxh-cli-dev/log": "file:../../utils/log",
+    "@lxh-cli-dev/init": "file:../../commands/init",
     "colors": "^1.4.0",
+    "commander": "^8.2.0",
+    "dotenv": "^10.0.0",
     "import-local": "^3.0.3",
+    "minimist": "^1.2.5",
     "npmlog": "^5.0.1",
     "path-exists": "^5.0.0",
     "root-check": "^2.0.0",
