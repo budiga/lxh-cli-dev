@@ -1,35 +1,38 @@
 'use strict';
 module.exports = core;
 
-const fs = require('fs')
 const path = require('path');
 const semver = require('semver')
 const colors = require('colors')
 const userHome = require('user-home')
 const commander = require('commander')
 const log = require('@lxh-cli-dev/log')
-const init = require('@lxh-cli-dev/init')
+const exec = require('@lxh-cli-dev/exec')
+const {pathExistsSync} = require('@lxh-cli-dev/utils')
 const pkg = require('../package.json')
 const contant = require('./const');
 
 
-let args, config
-
+let config
 const program = new commander.Command()
 
 async function core() {
   try {
-    checkPkgVersion()
-    checkNodeVersion()
-    checkRoot()
-    checkUserHome()
-    // checkInputArgs()
-    checkEnv()
-    await checkGlobalUpdate()
+    await prepare()
     registerCommand()
   } catch (e) {
     log.error(e.message)
+    if (program.debug) console.log(e)
   }
+}
+
+async function prepare() {
+  checkPkgVersion()
+  checkNodeVersion()
+  checkRoot()
+  checkUserHome()
+  checkEnv()
+  await checkGlobalUpdate()
 }
 
 function registerCommand() {
@@ -38,14 +41,18 @@ function registerCommand() {
     .usage('<command> [options]')
     .version(pkg.version)
     .option('-d, --debug', '是否开启调试模式', false)
+    .option('-tp, --targetPath <targetPath>', '是否开启调试模式', false)
 
   program
     .command('init [projectName]')
     .option('-f, --force', '是否强制初始化项目')
-    .action(init)
+    .action(exec)
 
+  program.on('option:targetPath', function() {
+    process.env.CLI_TARGET_PATH = program._optionValues.targetPath
+  })
   // 监听debug参数
-  program.on('option:debug', function(v) {
+  program.on('option:debug', function() {
     if (program._optionValues.debug) { // TODO: program.debug不能获取到？
       process.env.LOG_LEVEL = 'verbose'
     } else {
@@ -90,28 +97,6 @@ function checkUserHome() {
     throw new Error(colors.red('当前登陆用户主目录不存在'))
   }
 }
-function pathExistsSync(path) {
-  try {
-    fs.accessSync(path);
-    return true;
-	} catch {
-		return false;
-	}
-}
-
-// function checkInputArgs() {
-//   const minimist = require('minimist')
-//   args = minimist(process.argv.slice(2))
-//   checkArgs()
-// }
-// function checkArgs() {
-//   if (args.debug) {
-//     process.env.LOG_LEVEL = 'verbose'
-//   } else {
-//     process.env.LOG_LEVEL = 'info'
-//   }
-//   log.level = process.env.LOG_LEVEL
-// }
 
 function checkEnv() {
   const dotenv = require('dotenv')

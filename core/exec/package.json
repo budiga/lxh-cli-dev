@@ -1,6 +1,6 @@
 {
-  "name": "@lxh-cli-dev/get-npm-info",
-  "version": "1.0.4",
+  "name": "@lxh-cli-dev/exec",
+  "version": "1.0.0",
   "description": "> TODO: description",
   "author": "liuxuehuan <cipao@2dfire.com>",
   "homepage": "https://github.com/budiga/lxh-cli-dev#readme",
@@ -13,6 +13,9 @@
   "files": [
     "lib"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/budiga/lxh-cli-dev.git"
@@ -24,8 +27,7 @@
     "url": "https://github.com/budiga/lxh-cli-dev/issues"
   },
   "dependencies": {
-    "axios": "^0.23.0",
-    "semver": "^7.3.5",
-    "url-join": "^4.0.1"
+    "@lxh-cli-dev/package": "file:../../models/package",
+    "@lxh-cli-dev/log": "file:../../utils/log"
   }
 }

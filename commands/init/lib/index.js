@@ -1,7 +1,7 @@
 'use strict';
 
 function init(projectName, cmdObj) {
-  console.log('----- haha2 -----', projectName, cmdObj.force)
+  console.log('----- commands[init] -----', projectName, cmdObj.force, process.env.CLI_TARGET_PATH)
 }
 
 
