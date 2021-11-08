@@ -28,7 +28,6 @@ async function core() {
 
 async function prepare() {
   checkPkgVersion()
-  checkNodeVersion()
   checkRoot()
   checkUserHome()
   checkEnv()
@@ -76,15 +75,6 @@ function registerCommand() {
 
 function checkPkgVersion() {
   log.info('cli', pkg.version)
-}
-
-function checkNodeVersion() {
-  const currentVersion = process.version
-  const lowestVersion = contant.LOWEST_NODE_VERSION
-
-  if (!semver.gte(currentVersion, lowestVersion)) {
-    throw new Error(colors.red(`lxh-cli 需要安装v${lowestVersion}版本以上的Node.js！`))
-  }
 }
 
 async function checkRoot() {

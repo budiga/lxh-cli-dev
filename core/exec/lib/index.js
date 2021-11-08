@@ -1,11 +1,12 @@
 'use strict';
 
 const path = require('path')
+const cp = require('child_process')
 const Package = require('@lxh-cli-dev/package')
 const log = require('@lxh-cli-dev/log')
 
 const SETTINGS = {
-  init: '@lxh-cli-dev/core'
+  init: '@lxh-cli-dev/init'
 }
 const CACHE_DIR = 'dependencies'
 
@@ -47,7 +48,36 @@ async function exec() {
     })
     const rootFile = pkg.getRootFilePath()
     if (rootFile) {
-      require(rootFile).apply(null, arguments)
+      try {
+        // require(rootFile).call(null, Array.from(arguments))
+        const args = Array.from(arguments)
+        const cmd = args[args.length - 1]
+        const o = Object.create(null)
+        Object.keys(cmd).forEach(key => {
+          if (cmd.hasOwnProperty(key) &&
+            !key.startsWith('_') &&
+            key !== 'parent') {
+            o[key] = cmd[key]
+          }
+        })
+        args[args.length - 1] = o
+
+        const code = `require('${rootFile}').call(null, ${JSON.stringify(args)})`
+        const child = cp.spawn('node', ['-e', code], {
+          cwd: process.cwd(),
+          stdio: 'inherit',
+        })
+        child.on('error', e => {
+          log.error(e.message)
+          process.exit(1)
+        })
+        child.on('exit', c => {
+          log.verbose('命令执行成功:' + c)
+          process.exit(c)
+        })
+      } catch (error) {
+        log.error(error.message)
+      }
     }
   }
 

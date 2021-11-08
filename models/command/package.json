@@ -1,7 +1,7 @@
 {
-  "name": "@lxh-cli-dev/init",
-  "version": "1.0.4",
-  "description": "> TODO: description",
+  "name": "@lxh-cli-dev/command",
+  "version": "1.0.0",
+  "description": "lxh-cli command",
   "author": "liuxuehuan <cipao@2dfire.com>",
   "homepage": "https://github.com/budiga/lxh-cli-dev#readme",
   "license": "ISC",
@@ -14,7 +14,7 @@
     "lib"
   ],
   "publishConfig": {
-    "access": "public"
+    "registry": "https://registry.npm.taobao.org"
   },
   "repository": {
     "type": "git",
@@ -27,7 +27,8 @@
     "url": "https://github.com/budiga/lxh-cli-dev/issues"
   },
   "dependencies": {
-    "@lxh-cli-dev/command": "file:../../models/command",
+    "colors": "^1.4.0",
+    "semver": "^7.3.5",
     "@lxh-cli-dev/log": "file:../../utils/log"
   }
 }
