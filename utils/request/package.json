@@ -1,6 +1,6 @@
 {
-  "name": "@lxh-cli-dev/init",
-  "version": "1.0.4",
+  "name": "@lxh-cli-dev/request",
+  "version": "1.0.0",
   "description": "> TODO: description",
   "author": "liuxuehuan <cipao@2dfire.com>",
   "homepage": "https://github.com/budiga/lxh-cli-dev#readme",
@@ -14,7 +14,7 @@
     "lib"
   ],
   "publishConfig": {
-    "access": "public"
+    "registry": "https://registry.npm.taobao.org"
   },
   "repository": {
     "type": "git",
@@ -27,14 +27,6 @@
     "url": "https://github.com/budiga/lxh-cli-dev/issues"
   },
   "dependencies": {
-    "@lxh-cli-dev/command": "file:../../models/command",
-    "@lxh-cli-dev/log": "file:../../utils/log",
-    "@lxh-cli-dev/package": "file:../../models/package",
-    "@lxh-cli-dev/request": "file:../../utils/request",
-    "@lxh-cli-dev/utils": "file:../../utils/utils",
-    "fs-extra": "^10.0.0",
-    "inquirer": "^8.2.0",
-    "semver": "^7.3.5",
-    "user-home": "^3.0.0"
+    "axios": "^0.24.0"
   }
 }

@@ -1,11 +1,16 @@
 'use strict';
 
 const fs = require('fs')
+const path = require('path')
 const inquirer = require('inquirer')
 const fse = require('fs-extra')
 const semver = require('semver')
+const userHome = require('user-home')
 const Command = require('@lxh-cli-dev/command')
+const Package = require('@lxh-cli-dev/package')
 const log = require('@lxh-cli-dev/log')
+const { spinnerStart, sleep } = require('@lxh-cli-dev/utils')
+const getProjectTemplate = require('./getProjectTemplate')
 
 const TYPE_PROJECT = 'project'
 const TYPE_COMPONENT = 'component'
@@ -22,8 +27,9 @@ class initCommand extends Command {
       const projectInfo = await this.prepare()
       if (projectInfo) {
         log.verbose('projectInfo', projectInfo)
+        this.projectInfo = projectInfo
         // 下载模版
-        this.downloadTemplate()
+        await this.downloadTemplate()
         // 安装模版
       }
     } catch (error) {
@@ -31,12 +37,53 @@ class initCommand extends Command {
     }
   }
 
-  downloadTemplate() {
+  async downloadTemplate() {
     // 1. 通过项目模版api获取模版信息
     // 1.1 egg搭建后端系统 1.2 通过npm存储项目模版 1.3 模版信息存到mongodb 1.4 egg获取mongodb的数据并通过api返回
+    const { projectTemplate } = this.projectInfo
+    const templateInfo = this.template.find(item => item.npmName === projectTemplate)
+    const targetPath = path.resolve(userHome, '.lxh-cli-dev', 'template')
+    const storeDir = path.resolve(userHome, '.lxh-cli-dev', 'template', 'node_modules')
+    const { npmName, version } = templateInfo
+    const templateNpm = new Package({
+      targetPath,
+      storeDir,
+      packageName: npmName,
+      packageVersion: version,
+    })
+    if (!await templateNpm.exists()) {
+      // const spinner = spinnerStart('正在下载模版..')
+      console.log('----- 正在下载模版.. -----')
+      await sleep()
+      try {
+        await templateNpm.install()
+      } catch (error) {
+        throw error
+      }
+      // spinner.stop(true) // TODO: spinner.stop在这里会报错？why？
+      log.success('下载模版成功')
+    } else {
+      // const spinner = spinnerStart('正在更新模版..')
+      console.log('----- 正在更新模版.. -----')
+      await sleep()
+      try {
+        await templateNpm.update()
+      } catch (error) {
+        throw error
+      }
+      // spinner.stop(true)
+      log.success('更新模版成功')
+    }
+
   }
 
   async prepare() {
+    const template = await getProjectTemplate()
+    if (!template || template.length === 0) {
+      throw new Error('项目模版不存在')
+    }
+    this.template = template
+
     const localPath = process.cwd() // 当前运行命令的文件夹路径,等价写法：path.resolve('.')
     if(!this.isDirEmpty(localPath)) {
       let ifContinue
@@ -129,6 +176,12 @@ class initCommand extends Command {
             }, 300);
           },
         },
+        {
+          type: 'list',
+          name: 'projectTemplate',
+          message: '请选择项目模版',
+          choices: this.createTemplateChoice(),
+        }
       ])
 
       projectInfo = {
@@ -147,6 +200,12 @@ class initCommand extends Command {
       && ['node_modules'].indexOf(file) < 0
     ))
     return fileList.length <= 0
+  }
+  createTemplateChoice() {
+    return this.template.map(t => ({
+      value: t.npmName,
+      name: t.name,
+    }))
   }
 }
 

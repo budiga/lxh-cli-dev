@@ -13,7 +13,20 @@ function pathExistsSync(path) {
 		return false;
 	}
 }
+
+async function spinnerStart(msg, spinnerString = '|/-\\') {
+  const Spinner = require('cli-spinner').Spinner
+  const spinner = new Spinner(msg + ' %s')
+  spinner.setSpinnerString(spinnerString)
+  spinner.start()
+  return spinner
+}
+async function sleep(timeout = 1000) {
+  await new Promise(r => setTimeout(r, timeout))
+}
 module.exports = {
   isObject,
-  pathExistsSync
+  pathExistsSync,
+  spinnerStart,
+  sleep,
 };
