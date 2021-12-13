@@ -6,14 +6,20 @@ const inquirer = require('inquirer')
 const fse = require('fs-extra')
 const semver = require('semver')
 const userHome = require('user-home')
+const ejs = require('ejs')
+const glob = require('glob')
 const Command = require('@lxh-cli-dev/command')
 const Package = require('@lxh-cli-dev/package')
 const log = require('@lxh-cli-dev/log')
-const { spinnerStart, sleep } = require('@lxh-cli-dev/utils')
+const { spinnerStart, sleep, execAsync } = require('@lxh-cli-dev/utils')
 const getProjectTemplate = require('./getProjectTemplate')
 
 const TYPE_PROJECT = 'project'
 const TYPE_COMPONENT = 'component'
+
+const TEMPLATE_TYPE_NORMAL = 'normal'
+const TEMPLATE_TYPE_CUSTOM = 'custom'
+const WHITE_CMDS = ['npm', 'cnpm']
 class initCommand extends Command {
   init() {
     this.projectName = this._argv[0] || ''
@@ -31,10 +37,107 @@ class initCommand extends Command {
         // 下载模版
         await this.downloadTemplate()
         // 安装模版
+        await this.installTemplate()
       }
     } catch (error) {
       log.error(error.message)
+      if (process.env.LOG_LEVEL === 'verbose') {
+        console.log(error)
+      }
     }
+  }
+
+  async installTemplate() {
+    if (this.templateInfo) {
+      if (!this.templateInfo.type) {
+        this.templateInfo.type = TEMPLATE_TYPE_NORMAL
+      }
+      if (this.templateInfo.type === TEMPLATE_TYPE_NORMAL) {
+        // 普通安装
+        await this.installNormalTemplate()
+      } else if (this.templateInfo.type === TEMPLATE_TYPE_CUSTOM) {
+        // 自定义安装
+        await this.installCustomTemplate()
+      }
+    } else {
+      throw new Error('找不到模版信息')
+    }
+  }
+
+  ejsRender(ignore) {
+    const dir = process.cwd()
+    return new Promise((resolve, reject) => {
+      glob('**', {
+        cwd: dir,
+        ignore,
+        nodir: true,
+      }, (err, files) => {
+        if (err) reject(err)
+        Promise.all(files.map(file => {
+          const filePath = path.join(dir, file)
+          return new Promise((res, rej) => {
+            ejs.renderFile(filePath, this.projectInfo, {}, (error, result) => {
+              if (error) {
+                rej(error)
+              } else {
+                fse.writeFileSync(filePath, result)
+                res(result)
+              }
+            })
+          })
+        })).then(() => {
+          resolve()
+        }).catch(err => {
+          reject(err)
+        })
+      })
+    })
+  }
+
+  async installNormalTemplate() {
+    // let spinner = spinnerStart('正在安装模版')
+    console.log('----- 正在安装模版 -----')
+    try {
+      // 拷贝代码至当前目录
+      const templatePath = path.resolve(this.templateNpm.cacheFilePath, 'template')
+      const targetPath = process.cwd()
+      fse.ensureDirSync(templatePath)
+      fse.ensureDirSync(targetPath)
+      fse.copySync(templatePath, targetPath)
+    } catch (error) {
+      throw error
+    } finally {
+      console.log('----- 模版安装成功 -----')
+      // spinner.stop(true)
+    }
+    const templateIgnore = this.templateInfo.ignore || []
+    const ignore = ['node_modules/**', ...templateIgnore]
+    await this.ejsRender(ignore)
+    const { installCommand, startCommand } = this.templateInfo
+    await this.execCommand(installCommand) // 安装依赖
+    await this.execCommand(startCommand) // 启动命令执行
+  }
+
+  async installCustomTemplate() {}
+
+  async execCommand(command, errMessage) {
+    if (!command) return
+    let ret
+    const cmds = command.split(' ')
+    const cmd = this.checkCommand(cmds[0])
+    if (!cmd) throw new Error('命令不存在，命令：' + command)
+    const args = cmds.slice(1)
+    ret = await execAsync(cmd, args, {
+      stdio: 'inherit',
+      cwd: process.cwd()
+    })
+    if (ret !== 0) {
+      throw new Error(`${command}执行不成功`)
+    }
+  }
+  checkCommand(cmd) {
+    if (WHITE_CMDS.includes(cmd)) return cmd
+    return null
   }
 
   async downloadTemplate() {
@@ -42,6 +145,7 @@ class initCommand extends Command {
     // 1.1 egg搭建后端系统 1.2 通过npm存储项目模版 1.3 模版信息存到mongodb 1.4 egg获取mongodb的数据并通过api返回
     const { projectTemplate } = this.projectInfo
     const templateInfo = this.template.find(item => item.npmName === projectTemplate)
+    this.templateInfo = templateInfo
     const targetPath = path.resolve(userHome, '.lxh-cli-dev', 'template')
     const storeDir = path.resolve(userHome, '.lxh-cli-dev', 'template', 'node_modules')
     const { npmName, version } = templateInfo
@@ -59,9 +163,13 @@ class initCommand extends Command {
         await templateNpm.install()
       } catch (error) {
         throw error
+      } finally {
+        if (await templateNpm.exists()) {
+          log.success('下载模版成功')
+          this.templateNpm = templateNpm
+        }
       }
       // spinner.stop(true) // TODO: spinner.stop在这里会报错？why？
-      log.success('下载模版成功')
     } else {
       // const spinner = spinnerStart('正在更新模版..')
       console.log('----- 正在更新模版.. -----')
@@ -70,9 +178,13 @@ class initCommand extends Command {
         await templateNpm.update()
       } catch (error) {
         throw error
+      } finally {
+        if (await templateNpm.exists()) {
+          log.success('更新模版成功')
+          this.templateNpm = templateNpm
+        }
       }
       // spinner.stop(true)
-      log.success('更新模版成功')
     }
 
   }
@@ -112,6 +224,9 @@ class initCommand extends Command {
   }
 
   async getProjectInfo() {
+    function isValidateName(v) {
+      return /^[a-zA-Z]+([-][a-zA-Z][a-zA-Z0-9]*|[_][a-zA-Z][a-zA-Z0-9]*|[a-zA-Z0-9])*$/.test(v)
+    }
     let projectInfo = {}
     // 1.选择创建项目或组件
     const { type } = await inquirer.prompt({
@@ -127,69 +242,112 @@ class initCommand extends Command {
         value: TYPE_COMPONENT,
       }],
     })
+    let isProjectNameValid = false
+    if (isValidateName(this.projectName)) {
+      isProjectNameValid = true
+      projectInfo.projectName = this.projectName
+    }
+    this.template = this.template.filter(t => t.tag.includes(type))
+    const title = type === TYPE_PROJECT ? '项目' : '组件'
+    const projectPrompt = []
+    // 2.获取项目的基本信息
+    const projectNamePrompt = {
+      type: 'input',
+      name: 'projectName',
+      message: '请输入项目名称',
+      default: '',
+      filter: function(v) {
+        return v
+      },
+      validate: function(v) {
+        // 首字符必须为字母
+        // 尾字符必须为字母或数字
+        // 字符仅允许'-_', \w = 'a-zA-Z0-9_'
+        // 合法：a, a1,  a-b, a_b, a-b1-c1, a_b1_c1, 不合法：1，a_，a_1
+        const done = this.async()
+        setTimeout(function () {
+          if (!isValidateName(v)) {
+            done('请输入合法名称，')
+            return
+          }
+          done(null, true)
+        }, 300);
+      }
+    }
+    if (!isProjectNameValid) projectPrompt.push(projectNamePrompt)
+    projectPrompt.push({
+      type: 'input',
+      name: 'projectVersion',
+      message: `请输入${title}版本号`,
+      default: '1.0.0',
+      filter: function(v) {
+        const v2 = semver.valid(v)
+        if (!!v2) return v2
+        return v
+      },
+      validate: function(v) {
+        const done = this.async()
+        const ok = !!semver.valid(v)
+        setTimeout(function () {
+          if (!ok) {
+            done('请输入合法版本号')
+            return
+          }
+          done(null, true)
+        }, 300);
+      },
+    },
+    {
+      type: 'list',
+      name: 'projectTemplate',
+      message: `请选择${title}模版`,
+      choices: this.createTemplateChoice(),
+    })
     if (type === TYPE_PROJECT) {
-      // 2.获取项目的基本信息
-      const info = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'projectName',
-          message: '请输入项目名称',
-          default: '',
-          filter: function(v) {
-            return v
-          },
-          validate: function(v) {
-            // 首字符必须为字母
-            // 尾字符必须为字母或数字
-            // 字符仅允许'-_', \w = 'a-zA-Z0-9_'
-            // 合法：a, a1,  a-b, a_b, a-b1-c1, a_b1_c1, 不合法：1，a_，a_1
-            const done = this.async()
-            const ok = /^[a-zA-Z]+([-][a-zA-Z][a-zA-Z0-9]*|[_][a-zA-Z][a-zA-Z0-9]*|[a-zA-Z0-9])*$/.test(v)
-            setTimeout(function () {
-              if (!ok) {
-                done('请输入合法名称，')
-                return
-              }
-              done(null, true)
-            }, 300);
-          },
-        },
-        {
-          type: 'input',
-          name: 'projectVersion',
-          message: '请输入项目版本号',
-          default: '1.0.0',
-          filter: function(v) {
-            const v2 = semver.valid(v)
-            if (!!v2) return v2
-            return v
-          },
-          validate: function(v) {
-            const done = this.async()
-            const ok = !!semver.valid(v)
-            setTimeout(function () {
-              if (!ok) {
-                done('请输入合法版本号')
-                return
-              }
-              done(null, true)
-            }, 300);
-          },
-        },
-        {
-          type: 'list',
-          name: 'projectTemplate',
-          message: '请选择项目模版',
-          choices: this.createTemplateChoice(),
-        }
-      ])
+      const project = await inquirer.prompt(projectPrompt)
 
       projectInfo = {
+        ...projectInfo,
         type,
-        ...info,
+        ...project,
+      }
+    } else if (type === TYPE_COMPONENT) {
+      const desPrompt = {
+        type: 'input',
+        name: 'componentDes',
+        message: '请输入组件描述信息',
+        default: '',
+        validate: function(v) {
+          const done = this.async()
+          setTimeout(function () {
+            if (!v) {
+              done('请输入组件描述信息')
+              return
+            }
+            done(null, true)
+          });
+        },
+      }
+      projectPrompt.push(desPrompt)
+      const component = await inquirer.prompt(projectPrompt)
+      projectInfo = {
+        ...projectInfo,
+        type,
+        ...component,
       }
     }
 
+    // 生成className
+    if (projectInfo.projectName) {
+      projectInfo.name = projectInfo.projectName
+      projectInfo.className = require('kebab-case')(projectInfo.projectName).replace(/^-/, '')
+    }
+    if (projectInfo.projectVersion) {
+      projectInfo.version = projectInfo.projectVersion
+    }
+    if (projectInfo.componentDes) {
+      projectInfo.description = projectInfo.componentDes
+    }
     return projectInfo
   }
 

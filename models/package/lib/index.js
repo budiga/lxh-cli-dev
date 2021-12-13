@@ -65,8 +65,8 @@ class Package {
           version: latestPackageVersion,
         }]
       })
-      this.packageVersion = latestPackageVersion
     }
+    this.packageVersion = latestPackageVersion
   }
   async install() {
     await this.prepare()
