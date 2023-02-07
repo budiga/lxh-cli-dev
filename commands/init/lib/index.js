@@ -118,7 +118,27 @@ class initCommand extends Command {
     await this.execCommand(startCommand) // 启动命令执行
   }
 
-  async installCustomTemplate() {}
+  async installCustomTemplate() {
+    if (this.templateNpm.exists()) {
+      const rootFile = this.templateNpm.getRootFilePath()
+      if (fs.existsSync(rootFile)) {
+        log.notice('开始执行自定义模版')
+        const options = {
+          ...this.templateInfo,
+          cwd: process.cwd()
+        }
+        const code = `require(${rootFile})(${JSON.stringify(options)})`
+        log.verbose('code', code)
+        await execAsync('node', ['-e', code], {
+          stdio: 'inherit',
+          cwd: process.cwd()
+        })
+        log.success('自定义模版安装成功')
+      } else {
+       throw new Error('自定义模版安装文件不存在')
+      }
+    }
+  }
 
   async execCommand(command, errMessage) {
     if (!command) return
